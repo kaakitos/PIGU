@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P.I.G.U — Centre Opérationnel</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root {
+    --red: #E8293A;
+    --red-dim: rgba(232,41,58,0.15);
+    --red-border: rgba(232,41,58,0.35);
+    --bg: #07080C;
+    --bg2: #0D0F16;
+    --bg3: #12151F;
+    --border: rgba(255,255,255,0.07);
+    --text: #E8EAF0;
+    --text-dim: #6B7280;
+    --text-muted: #2E3340;
+    --green: #00E887;
+    --green-dim: rgba(0,232,135,0.12);
+    --amber: #F5A623;
+    --amber-dim: rgba(245,166,35,0.12);
+    --blue: #3B82F6;
+    --blue-dim: rgba(59,130,246,0.12);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* TOP BAR */
+  .topbar {
+    height: 52px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 0;
+    flex-shrink: 0;
+    z-index: 100;
+  }
+
+  .topbar-logo {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--text);
+    padding-right: 20px;
+    border-right: 1px solid var(--border);
+    margin-right: 20px;
+  }
+
+  .topbar-logo span { color: var(--red); }
+
+  .topbar-tabs {
+    display: flex;
+    height: 100%;
+    gap: 0;
+  }
+
+  .tab {
+    height: 100%;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .tab.active {
+    color: var(--text);
+    border-bottom-color: var(--red);
+  }
+
+  .tab:hover { color: var(--text); }
+
+  .topbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .sys-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--green);
+  }
+
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: blink 1.5s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  .clock { font-size: 12px; color: var(--text-dim); }
+
+  .btn-new-call {
+    background: var(--red);
+    color: #fff;
+    border: none;
+    padding: 7px 16px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    clip-path: polygon(5px 0%,100% 0%,calc(100% - 5px) 100%,0% 100%);
+    transition: background 0.2s;
+  }
+  .btn-new-call:hover { background: #c01e2d; }
+
+  /* MAIN LAYOUT */
+  .main {
+    display: grid;
+    grid-template-columns: 280px 1fr 300px;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* LEFT PANEL */
+  .panel-left {
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-section {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-header {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg3);
+  }
+
+  .panel-title {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .badge {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 2px;
+    font-weight: 500;
+  }
+
+  .badge-red { background: var(--red-dim); color: var(--red); border: 1px solid var(--red-border); }
+  .badge-green { background: var(--green-dim); color: var(--green); }
+  .badge-amber { background: var(--amber-dim); color: var(--amber); }
+  .badge-blue { background: var(--blue-dim); color: var(--blue); }
+
+  /* STATS ROW */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .stat-mini {
+    background: var(--bg2);
+    padding: 14px 16px;
+  }
+
+  .stat-mini-label { font-size: 9px; letter-spacing: 1.5px; color: var(--text-dim); margin-bottom: 4px; }
+  .stat-mini-val { font-family: 'Rajdhani', sans-serif; font-size: 28px; font-weight: 700; line-height: 1; }
+  .val-green { color: var(--green); }
+  .val-amber { color: var(--amber); }
+  .val-red { color: var(--red); }
+  .val-blue { color: var(--blue); }
+
+  /* INCIDENT LIST */
+  .incident-list { overflow-y: auto; flex: 1; }
+
+  .incident-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+  }
+
+  .incident-item:hover { background: var(--bg3); }
+  .incident-item.active { background: var(--bg3); border-left: 2px solid var(--red); }
+
+  .incident-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .incident-id { font-size: 10px; color: var(--text-dim); }
+  .incident-time { font-size: 10px; color: var(--text-muted); }
+
+  .incident-desc {
+    font-size: 11px;
+    color: var(--text);
+    margin-bottom: 6px;
+    line-height: 1.4;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+
+  .incident-meta {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .priority-pill {
+    font-size: 9px;
+    padding: 2px 6px;
+    letter-spacing: 1px;
+    font-weight: 500;
+  }
+
+  .priority-tres { background: rgba(232,41,58,0.2); color: var(--red); border: 1px solid var(--red-border); }
+  .priority-urgent { background: rgba(245,166,35,0.2); color: var(--amber); border: 1px solid rgba(245,166,35,0.3); }
+  .priority-non { background: rgba(59,130,246,0.15); color: var(--blue); border: 1px solid rgba(59,130,246,0.25); }
+
+  .addr { font-size: 10px; color: var(--text-dim); }
+
+  /* CENTER — MAP */
+  .panel-center {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .map-toolbar {
+    height: 40px;
+    background: rgba(7,8,12,0.9);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+
+  .map-toolbar-label { font-size: 10px; letter-spacing: 1.5px; color: var(--text-dim); }
+
+  .map-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 4px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+
+  .map-btn:hover, .map-btn.active { color: var(--text); border-color: var(--red); background: var(--red-dim); }
+
+  #map { flex: 1; z-index: 1; }
+
+  /* Map overlay legend */
+  .map-legend {
+    position: absolute;
+    bottom: 20px;
+    left: 16px;
+    background: rgba(13,15,22,0.92);
+    border: 1px solid var(--border);
+    padding: 12px 16px;
+    z-index: 10;
+    backdrop-filter: blur(8px);
+  }
+
+  .legend-title { font-size: 9px; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--text-dim); margin-bottom: 4px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* RIGHT PANEL */
+  .panel-right {
+    background: var(--bg2);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* AMBULANCE LIST */
+  .amb-list { overflow-y: auto; max-height: 260px; }
+
+  .amb-item {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .amb-item:hover { background: var(--bg3); }
+
+  .amb-status-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  .amb-info { flex: 1; }
+  .amb-id { font-size: 11px; color: var(--text); letter-spacing: 0.5px; }
+  .amb-driver { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+  .amb-badge { font-size: 9px; padding: 2px 6px; }
+
+  /* MISSION FORM */
+  .mission-form { padding: 14px; flex: 1; overflow-y: auto; }
+
+  .form-title {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--red);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .form-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--red-border);
+  }
+
+  .field { margin-bottom: 12px; }
+  .field-label { font-size: 9px; letter-spacing: 1.5px; color: var(--text-dim); margin-bottom: 5px; }
+
+  .field-input, .field-select, .field-textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .field-input:focus, .field-select:focus, .field-textarea:focus { border-color: var(--red); }
+  .field-select option { background: var(--bg2); }
+  .field-textarea { resize: none; height: 60px; line-height: 1.5; }
+
+  .priority-btns { display: flex; gap: 6px; }
+
+  .prio-btn {
+    flex: 1;
+    padding: 6px 4px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .prio-btn.selected-nu { background: var(--blue-dim); color: var(--blue); border-color: rgba(59,130,246,0.4); }
+  .prio-btn.selected-u { background: var(--amber-dim); color: var(--amber); border-color: rgba(245,166,35,0.4); }
+  .prio-btn.selected-tu { background: var(--red-dim); color: var(--red); border-color: var(--red-border); }
+
+  .btn-affect {
+    width: 100%;
+    background: var(--red);
+    color: #fff;
+    border: none;
+    padding: 11px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: background 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-affect:hover { background: #c01e2d; }
+
+  /* HOSPITAL LIST */
+  .hosp-list { overflow-y: auto; }
+
+  .hosp-item {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .hosp-item:hover { background: var(--bg3); }
+  .hosp-item.selected { background: var(--bg3); border-left: 2px solid var(--green); }
+
+  .hosp-name { font-size: 11px; color: var(--text); margin-bottom: 3px; font-family: 'Rajdhani', sans-serif; font-weight: 500; letter-spacing: 0.5px; }
+  .hosp-meta { display: flex; gap: 8px; align-items: center; }
+  .hosp-places { font-size: 10px; color: var(--green); }
+  .hosp-spec { font-size: 9px; color: var(--text-dim); }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--bg2);
+    border: 1px solid var(--green);
+    border-left: 3px solid var(--green);
+    padding: 14px 20px;
+    z-index: 1000;
+    font-size: 12px;
+    color: var(--green);
+    transform: translateX(120%);
+    transition: transform 0.3s ease;
+    max-width: 280px;
+  }
+
+  .toast.show { transform: translateX(0); }
+  .toast-title { font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 1px; margin-bottom: 4px; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+  /* Leaflet overrides */
+  .leaflet-container { background: #0D0F16 !important; }
+  .leaflet-tile { filter: brightness(0.6) saturate(0.4) hue-rotate(180deg); }
+  .leaflet-control-zoom a { background: var(--bg2) !important; color: var(--text) !important; border-color: var(--border) !important; }
+
+  .custom-marker {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    font-size: 13px;
+    border: 2px solid;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-logo">P.I.G.<span>U</span></div>
+  <div class="topbar-tabs">
+    <div class="tab active">OPÉRATIONS</div>
+    <div class="tab">AMBULANCES</div>
+    <div class="tab">HÔPITAUX</div>
+    <div class="tab">HISTORIQUE</div>
+  </div>
+  <div class="topbar-right">
+    <div class="sys-status"><span class="dot"></span> SYSTÈME ACTIF</div>
+    <div class="clock" id="clock">--:--:--</div>
+    <button class="btn-new-call" onclick="openNewCall()">+ NOUVEL APPEL</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT: Incidents -->
+  <div class="panel-left">
+    <div class="stats-row">
+      <div class="stat-mini">
+        <div class="stat-mini-label">AMBULANCES</div>
+        <div class="stat-mini-val val-green">12</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini-label">MISSIONS</div>
+        <div class="stat-mini-val val-amber">4</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini-label">PLACES DISPO</div>
+        <div class="stat-mini-val val-blue">247</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini-label">APPELS / JOUR</div>
+        <div class="stat-mini-val val-red">38</div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-header">
+        <span class="panel-title">INCIDENTS ACTIFS</span>
+        <span class="badge badge-red" id="incident-count">3</span>
+      </div>
+    </div>
+
+    <div class="incident-list" id="incident-list"></div>
+  </div>
+
+  <!-- CENTER: Map -->
+  <div class="panel-center">
+    <div class="map-toolbar">
+      <span class="map-toolbar-label">CARTE OPÉRATIONNELLE</span>
+      <button class="map-btn active" onclick="toggleLayer('amb', this)">AMBULANCES</button>
+      <button class="map-btn active" onclick="toggleLayer('hop', this)">HÔPITAUX</button>
+      <button class="map-btn active" onclick="toggleLayer('inc', this)">INCIDENTS</button>
+      <div style="margin-left:auto; font-size:10px; color:var(--text-dim)" id="map-coords">DAK 14.69°N 17.44°W</div>
+    </div>
+    <div id="map"></div>
+    <div class="map-legend">
+      <div class="legend-title">LÉGENDE</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>Ambulance disponible</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--amber)"></span>Ambulance en mission</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--red)"></span>Incident</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--blue)"></span>Hôpital</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Ambulances + Form -->
+  <div class="panel-right">
+    <div class="panel-section">
+      <div class="panel-header">
+        <span class="panel-title">UNITÉS AMBULANCIÈRES</span>
+        <span class="badge badge-green">12 DISPO</span>
+      </div>
+    </div>
+
+    <div class="amb-list" id="amb-list"></div>
+
+    <div class="panel-section">
+      <div class="panel-header">
+        <span class="panel-title">HÔPITAUX — PLACES DISPO</span>
+      </div>
+    </div>
+
+    <div class="hosp-list" id="hosp-list" style="max-height:180px; overflow-y:auto;"></div>
+
+    <div class="mission-form">
+      <div class="form-title">CRÉER MISSION</div>
+
+      <div class="field">
+        <div class="field-label">INCIDENT</div>
+        <select class="field-select" id="f-incident">
+          <option value="">— Sélectionner —</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <div class="field-label">PRIORITÉ</div>
+        <div class="priority-btns">
+          <button class="prio-btn" onclick="setPrio(this,'selected-nu')">NON URG.</button>
+          <button class="prio-btn" onclick="setPrio(this,'selected-u')">URGENT</button>
+          <button class="prio-btn selected-tu" onclick="setPrio(this,'selected-tu')">TRÈS URG.</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-label">AMBULANCE</div>
+        <select class="field-select" id="f-amb">
+          <option value="">— Sélectionner —</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <div class="field-label">HÔPITAL DESTINATION</div>
+        <select class="field-select" id="f-hop">
+          <option value="">— Sélectionner —</option>
+        </select>
+      </div>
+
+      <button class="btn-affect" onclick="affecterMission()">AFFECTER LA MISSION</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <div class="toast-title">MISSION CRÉÉE</div>
+  <div id="toast-msg">Ambulance AMB-03 affectée — CHU Fann</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ===== DATA SIMULÉE =====
+const incidents = [
+  { id:'INC-001', desc:'Accident de la route', addr:'Av. Cheikh Anta Diop, Dakar', prio:'TRES_URGENT', statut:'NOUVEAU', lat:14.693, lng:-17.447, time:'08:14' },
+  { id:'INC-002', desc:'Malaise cardiaque', addr:'Plateau, Dakar', prio:'URGENT', statut:'EN_TRAITEMENT', lat:14.681, lng:-17.435, time:'08:31' },
+  { id:'INC-003', desc:'Fracture ouverte', addr:'Parcelles Assainies', prio:'URGENT', statut:'NOUVEAU', lat:14.762, lng:-17.420, time:'09:02' },
+];
+
+const ambulances = [
+  { id:'AMB-01', driver:'Diallo M.', statut:'DISPONIBLE', lat:14.690, lng:-17.452 },
+  { id:'AMB-02', driver:'Sow A.', statut:'EN_MISSION', lat:14.700, lng:-17.430 },
+  { id:'AMB-03', driver:'Ndiaye F.', statut:'DISPONIBLE', lat:14.675, lng:-17.460 },
+  { id:'AMB-04', driver:'Fall K.', statut:'DISPONIBLE', lat:14.710, lng:-17.445 },
+  { id:'AMB-05', driver:'Mbaye S.', statut:'EN_MISSION', lat:14.685, lng:-17.420 },
+  { id:'AMB-06', driver:'Camara B.', statut:'DISPONIBLE', lat:14.695, lng:-17.470 },
+];
+
+const hopitaux = [
+  { id:'HOP-01', nom:'CHU de Fann', places:24, spec:'Neurologie', lat:14.690, lng:-17.462 },
+  { id:'HOP-02', nom:'Hôpital Principal', places:18, spec:'Urgences générales', lat:14.673, lng:-17.437 },
+  { id:'HOP-03', nom:'CHU Aristide Le Dantec', places:9, spec:'Cardiologie', lat:14.680, lng:-17.448 },
+  { id:'HOP-04', nom:'Hôpital Abass Ndao', places:31, spec:'Pédiatrie', lat:14.704, lng:-17.452 },
+  { id:'HOP-05', nom:'Hôpital Grand Yoff', places:5, spec:'Traumatologie', lat:14.740, lng:-17.462 },
+];
+
+// ===== CLOCK =====
+function tick() {
+  const n = new Date();
+  document.getElementById('clock').textContent = n.toLocaleTimeString('fr-FR');
+}
+tick(); setInterval(tick, 1000);
+
+// ===== MAP =====
+const map = L.map('map', { zoomControl: true, attributionControl: false })
+  .setView([14.693, -17.447], 13);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+map.on('mousemove', e => {
+  document.getElementById('map-coords').textContent =
+    `${e.latlng.lat.toFixed(4)}°N  ${Math.abs(e.latlng.lng).toFixed(4)}°W`;
+});
+
+function makeIcon(color, label) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:28px;height:28px;background:${color}22;border:2px solid ${color};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${color};font-family:JetBrains Mono,monospace">${label}</div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
+}
+
+const layers = { amb: L.layerGroup(), hop: L.layerGroup(), inc: L.layerGroup() };
+
+ambulances.forEach(a => {
+  const color = a.statut === 'DISPONIBLE' ? '#00E887' : '#F5A623';
+  const m = L.marker([a.lat, a.lng], { icon: makeIcon(color, '🚑') })
+    .bindPopup(`<b style="color:${color}">${a.id}</b><br>${a.driver}<br><small>${a.statut}</small>`);
+  layers.amb.addLayer(m);
+});
+
+hopitaux.forEach(h => {
+  const m = L.marker([h.lat, h.lng], { icon: makeIcon('#3B82F6', '🏥') })
+    .bindPopup(`<b style="color:#3B82F6">${h.nom}</b><br>Places: <b>${h.places}</b><br><small>${h.spec}</small>`);
+  layers.hop.addLayer(m);
+});
+
+incidents.forEach(i => {
+  const color = i.prio === 'TRES_URGENT' ? '#E8293A' : '#F5A623';
+  const m = L.marker([i.lat, i.lng], { icon: makeIcon(color, '⚠') })
+    .bindPopup(`<b style="color:${color}">${i.id}</b><br>${i.desc}<br><small>${i.addr}</small>`);
+  layers.inc.addLayer(m);
+});
+
+Object.values(layers).forEach(l => l.addTo(map));
+
+function toggleLayer(name, btn) {
+  btn.classList.toggle('active');
+  if (map.hasLayer(layers[name])) map.removeLayer(layers[name]);
+  else layers[name].addTo(map);
+}
+
+// ===== RENDER INCIDENTS =====
+function renderIncidents() {
+  const el = document.getElementById('incident-list');
+  el.innerHTML = '';
+  incidents.forEach((inc, i) => {
+    const prioCls = inc.prio === 'TRES_URGENT' ? 'priority-tres' : inc.prio === 'URGENT' ? 'priority-urgent' : 'priority-non';
+    const prioLabel = inc.prio === 'TRES_URGENT' ? 'TRÈS URG.' : inc.prio === 'URGENT' ? 'URGENT' : 'NON URG.';
+    const statutBadge = inc.statut === 'NOUVEAU' ? 'badge-red' : inc.statut === 'EN_TRAITEMENT' ? 'badge-amber' : 'badge-green';
+    el.innerHTML += `
+      <div class="incident-item ${i===0?'active':''}" onclick="selectIncident(${i})">
+        <div class="incident-top">
+          <span class="incident-id">${inc.id}</span>
+          <span class="incident-time">${inc.time}</span>
+        </div>
+        <div class="incident-desc">${inc.desc}</div>
+        <div class="incident-meta">
+          <span class="priority-pill ${prioCls}">${prioLabel}</span>
+          <span class="badge ${statutBadge}">${inc.statut.replace('_',' ')}</span>
+          <span class="addr">${inc.addr.substring(0,24)}...</span>
+        </div>
+      </div>`;
+  });
+  document.getElementById('incident-count').textContent = incidents.filter(i=>i.statut!=='RESOLU').length;
+
+  // Populate select
+  const sel = document.getElementById('f-incident');
+  sel.innerHTML = '<option value="">— Sélectionner —</option>';
+  incidents.forEach(i => { sel.innerHTML += `<option value="${i.id}">${i.id} — ${i.desc}</option>`; });
+}
+
+function selectIncident(idx) {
+  document.querySelectorAll('.incident-item').forEach((el,i) => el.classList.toggle('active', i===idx));
+  map.setView([incidents[idx].lat, incidents[idx].lng], 15);
+  document.getElementById('f-incident').value = incidents[idx].id;
+}
+
+// ===== RENDER AMBULANCES =====
+function renderAmbs() {
+  const el = document.getElementById('amb-list');
+  el.innerHTML = '';
+  ambulances.forEach(a => {
+    const color = a.statut === 'DISPONIBLE' ? 'var(--green)' : a.statut === 'EN_MISSION' ? 'var(--amber)' : 'var(--text-muted)';
+    const badgeCls = a.statut === 'DISPONIBLE' ? 'badge-green' : 'badge-amber';
+    el.innerHTML += `
+      <div class="amb-item" onclick="selectAmb('${a.id}')">
+        <span class="amb-status-dot" style="background:${color}"></span>
+        <div class="amb-info">
+          <div class="amb-id">${a.id}</div>
+          <div class="amb-driver">${a.driver}</div>
+        </div>
+        <span class="badge ${badgeCls} amb-badge">${a.statut.replace('_',' ')}</span>
+      </div>`;
+  });
+
+  const sel = document.getElementById('f-amb');
+  sel.innerHTML = '<option value="">— Sélectionner —</option>';
+  ambulances.filter(a=>a.statut==='DISPONIBLE').forEach(a => {
+    sel.innerHTML += `<option value="${a.id}">${a.id} — ${a.driver}</option>`;
+  });
+}
+
+function selectAmb(id) {
+  document.getElementById('f-amb').value = id;
+}
+
+// ===== RENDER HOPITAUX =====
+function renderHopitaux() {
+  const el = document.getElementById('hosp-list');
+  el.innerHTML = '';
+  hopitaux.forEach(h => {
+    const color = h.places > 15 ? 'var(--green)' : h.places > 5 ? 'var(--amber)' : 'var(--red)';
+    el.innerHTML += `
+      <div class="hosp-item" onclick="selectHop('${h.id}', this)">
+        <div class="hosp-name">${h.nom}</div>
+        <div class="hosp-meta">
+          <span class="hosp-places" style="color:${color}">${h.places} places</span>
+          <span class="hosp-spec">${h.spec}</span>
+        </div>
+      </div>`;
+  });
+
+  const sel = document.getElementById('f-hop');
+  sel.innerHTML = '<option value="">— Sélectionner —</option>';
+  hopitaux.forEach(h => { sel.innerHTML += `<option value="${h.id}">${h.nom} (${h.places} pl.)</option>`; });
+}
+
+function selectHop(id, el) {
+  document.querySelectorAll('.hosp-item').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('f-hop').value = id;
+}
+
+// ===== PRIORITY BUTTONS =====
+function setPrio(btn, cls) {
+  document.querySelectorAll('.prio-btn').forEach(b => b.className = 'prio-btn');
+  btn.classList.add(cls);
+}
+
+// ===== NEW CALL =====
+function openNewCall() {
+  const desc = prompt('Description de l\'incident :');
+  if (!desc) return;
+  const newInc = {
+    id: 'INC-00' + (incidents.length + 1),
+    desc,
+    addr: 'Dakar, Sénégal',
+    prio: 'URGENT',
+    statut: 'NOUVEAU',
+    lat: 14.680 + (Math.random() - 0.5) * 0.06,
+    lng: -17.440 + (Math.random() - 0.5) * 0.06,
+    time: new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'}),
+  };
+  incidents.unshift(newInc);
+
+  const color = '#F5A623';
+  const m = L.marker([newInc.lat, newInc.lng], { icon: makeIcon(color, '⚠') })
+    .bindPopup(`<b>${newInc.id}</b><br>${newInc.desc}`);
+  layers.inc.addLayer(m);
+
+  renderIncidents();
+  showToast('NOUVEL INCIDENT', `${newInc.id} — ${newInc.desc}`);
+}
+
+// ===== AFFECTER MISSION =====
+function affecterMission() {
+  const inc = document.getElementById('f-incident').value;
+  const amb = document.getElementById('f-amb').value;
+  const hop = document.getElementById('f-hop').value;
+
+  if (!inc || !amb || !hop) {
+    showToast('CHAMPS MANQUANTS', 'Veuillez sélectionner incident, ambulance et hôpital.', true);
+    return;
+  }
+
+  const ambData = ambulances.find(a => a.id === amb);
+  if (ambData) ambData.statut = 'EN_MISSION';
+
+  const incData = incidents.find(i => i.id === inc);
+  if (incData) incData.statut = 'EN_TRAITEMENT';
+
+  const hopData = hopitaux.find(h => h.id === hop);
+  const hopNom = hopData ? hopData.nom : hop;
+
+  renderAmbs();
+  renderIncidents();
+
+  showToast('MISSION CRÉÉE', `${amb} affecté → ${hopNom}`);
+
+  document.getElementById('f-incident').value = '';
+  document.getElementById('f-amb').value = '';
+  document.getElementById('f-hop').value = '';
+}
+
+// ===== TOAST =====
+function showToast(title, msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.style.borderColor = isError ? 'var(--red)' : 'var(--green)';
+  t.style.color = isError ? 'var(--red)' : 'var(--green)';
+  t.querySelector('.toast-title').textContent = title;
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ===== INIT =====
+renderIncidents();
+renderAmbs();
+renderHopitaux();
+</script>
+</body>
+</html>

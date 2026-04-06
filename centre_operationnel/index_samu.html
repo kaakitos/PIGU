@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P.I.G.U — Centre Opérationnel SAMU</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #E8293A;
+    --red-dim: #9B1A24;
+    --red-glow: rgba(232,41,58,0.18);
+    --bg: #07080C;
+    --bg2: #0D0F16;
+    --bg3: #12151F;
+    --border: rgba(255,255,255,0.07);
+    --border-red: rgba(232,41,58,0.35);
+    --text: #E8EAF0;
+    --text-dim: #6B7280;
+    --text-muted: #3A3F4D;
+    --green: #00E887;
+    --amber: #F5A623;
+    --blue: #3B82F6;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(232,41,58,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232,41,58,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Radial glow */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 900px;
+    height: 500px;
+    background: radial-gradient(ellipse, rgba(232,41,58,0.12) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 40px;
+    height: 60px;
+    background: rgba(7,8,12,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .nav-logo-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--red);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pulse-icon 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-icon {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(232,41,58,0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(232,41,58,0); }
+  }
+
+  .nav-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--text);
+  }
+
+  .nav-title span { color: var(--red); }
+
+  .nav-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--green);
+  }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: blink 1.5s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .nav-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .btn-login {
+    background: var(--red);
+    color: #fff;
+    border: none;
+    padding: 8px 20px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    transition: background 0.2s;
+    text-decoration: none;
+    display: inline-block;
+  }
+
+  .btn-login:hover { background: #c01e2d; }
+
+  /* HERO */
+  .hero {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 100px 80px 60px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--red);
+    letter-spacing: 2px;
+    margin-bottom: 24px;
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards 0.2s;
+  }
+
+  .hero-tag::before {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 1px;
+    background: var(--red);
+  }
+
+  .hero-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: clamp(52px, 8vw, 96px);
+    font-weight: 700;
+    line-height: 0.95;
+    letter-spacing: -1px;
+    margin-bottom: 8px;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.35s;
+  }
+
+  .hero-title .line2 {
+    color: var(--red);
+    display: block;
+    -webkit-text-stroke: 1px var(--red);
+  }
+
+  .hero-title .line3 {
+    color: transparent;
+    -webkit-text-stroke: 1px rgba(255,255,255,0.2);
+    display: block;
+  }
+
+  .hero-sub {
+    font-size: 15px;
+    font-weight: 300;
+    color: var(--text-dim);
+    max-width: 480px;
+    line-height: 1.7;
+    margin-top: 28px;
+    margin-bottom: 48px;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.5s;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.65s;
+  }
+
+  .btn-primary {
+    background: var(--red);
+    color: #fff;
+    border: none;
+    padding: 14px 36px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-primary::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.1);
+    transform: translateX(-100%);
+    transition: transform 0.3s;
+  }
+
+  .btn-primary:hover::after { transform: translateX(0); }
+
+  .btn-secondary {
+    color: var(--text-dim);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--text-muted);
+    padding-bottom: 2px;
+    transition: color 0.2s, border-color 0.2s;
+  }
+
+  .btn-secondary:hover { color: var(--text); border-color: var(--text-dim); }
+
+  /* STATS BAR */
+  .stats-bar {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    margin: 0;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.8s;
+  }
+
+  .stat-item {
+    padding: 28px 40px;
+    border-right: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-item:last-child { border-right: none; }
+
+  .stat-item::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--red);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+  }
+
+  .stat-item:hover::before { transform: scaleX(1); }
+
+  .stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .stat-value.green { color: var(--green); }
+  .stat-value.red { color: var(--red); }
+  .stat-value.amber { color: var(--amber); }
+
+  .stat-delta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* FEATURES */
+  .features {
+    position: relative;
+    z-index: 1;
+    padding: 80px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .section-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--red);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 48px;
+    color: var(--text);
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .feature-card {
+    background: var(--bg2);
+    padding: 36px 32px;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.3s;
+  }
+
+  .feature-card:hover { background: var(--bg3); }
+
+  .feature-card::after {
+    content: attr(data-num);
+    position: absolute;
+    bottom: -10px;
+    right: 16px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 80px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.03);
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  .feature-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--red-glow);
+    border: 1px solid var(--border-red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    font-size: 18px;
+  }
+
+  .feature-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+
+  .feature-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+
+  /* WORKFLOW */
+  .workflow {
+    position: relative;
+    z-index: 1;
+    padding: 0 80px 80px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .workflow-steps {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0;
+    margin-top: 40px;
+    position: relative;
+  }
+
+  .workflow-steps::before {
+    content: '';
+    position: absolute;
+    top: 24px;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--red), var(--red), transparent);
+    opacity: 0.3;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0 12px;
+  }
+
+  .step-num {
+    width: 48px;
+    height: 48px;
+    background: var(--bg2);
+    border: 1px solid var(--border-red);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+  }
+
+  .step-label {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .step-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  /* CTA */
+  .cta {
+    position: relative;
+    z-index: 1;
+    margin: 0 80px 80px;
+    background: var(--bg2);
+    border: 1px solid var(--border-red);
+    padding: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 40px;
+    overflow: hidden;
+  }
+
+  .cta::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--red);
+  }
+
+  .cta-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+
+  .cta-sub {
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+
+  /* FOOTER */
+  footer {
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid var(--border);
+    padding: 24px 80px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .footer-logo {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+  }
+
+  .footer-logo span { color: var(--red); }
+
+  .footer-right {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* LIVE TICKER */
+  .ticker {
+    position: relative;
+    z-index: 1;
+    background: var(--red);
+    padding: 8px 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .ticker-inner {
+    display: inline-flex;
+    gap: 60px;
+    animation: scroll 20s linear infinite;
+  }
+
+  .ticker-item {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.9);
+  }
+
+  .ticker-item::before {
+    content: '◆ ';
+    opacity: 0.6;
+  }
+
+  @keyframes scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* LOGIN MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(7,8,12,0.92);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    backdrop-filter: blur(4px);
+  }
+
+  .modal-overlay.active { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--border-red);
+    width: 420px;
+    padding: 48px;
+    position: relative;
+    transform: translateY(20px);
+    transition: transform 0.3s;
+  }
+
+  .modal-overlay.active .modal { transform: translateY(0); }
+
+  .modal::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--red);
+  }
+
+  .modal-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--red);
+    margin-bottom: 24px;
+  }
+
+  .modal-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 32px;
+  }
+
+  .form-group { margin-bottom: 20px; }
+
+  .form-label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .form-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-input:focus { border-color: var(--red); }
+
+  .form-input::placeholder { color: var(--text-muted); }
+
+  .btn-submit {
+    width: 100%;
+    background: var(--red);
+    color: #fff;
+    border: none;
+    padding: 14px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background 0.2s;
+  }
+
+  .btn-submit:hover { background: #c01e2d; }
+
+  .modal-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px 8px;
+  }
+
+  .modal-close:hover { color: var(--text); }
+
+  @media (max-width: 900px) {
+    .hero { padding: 100px 24px 40px; }
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .features-grid { grid-template-columns: 1fr; }
+    .workflow-steps { grid-template-columns: repeat(2, 1fr); gap: 24px; }
+    .workflow-steps::before { display: none; }
+    .features, .workflow { padding: 40px 24px; }
+    .cta { margin: 0 24px 40px; padding: 32px; flex-direction: column; }
+    footer { padding: 20px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-icon"></div>
+    <span class="nav-title">P.I.G.<span>U</span></span>
+  </div>
+  <div class="nav-status">
+    <span class="status-dot"></span>
+    SYSTÈME OPÉRATIONNEL
+  </div>
+  <div class="nav-right">
+    <span class="nav-time" id="clock">--:--:--</span>
+    <a href="#" class="btn-login" onclick="openModal(); return false;">CONNEXION</a>
+  </div>
+</nav>
+
+<!-- TICKER -->
+<div class="ticker" style="margin-top:60px">
+  <div class="ticker-inner">
+    <span class="ticker-item">CENTRE OPÉRATIONNEL SAMU NATIONAL</span>
+    <span class="ticker-item">PLATEFORME INTELLIGENTE DE GESTION DES URGENCES</span>
+    <span class="ticker-item">RÉGULATION MÉDICALE EN TEMPS RÉEL</span>
+    <span class="ticker-item">SÉNÉGAL — DAKAR</span>
+    <span class="ticker-item">CENTRE OPÉRATIONNEL SAMU NATIONAL</span>
+    <span class="ticker-item">PLATEFORME INTELLIGENTE DE GESTION DES URGENCES</span>
+    <span class="ticker-item">RÉGULATION MÉDICALE EN TEMPS RÉEL</span>
+    <span class="ticker-item">SÉNÉGAL — DAKAR</span>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-tag">CENTRE OPÉRATIONNEL — SAMU NATIONAL</div>
+  <h1 class="hero-title">
+    GESTION<br>
+    <span class="line2">DES URGENCES</span>
+    <span class="line3">MÉDICALES</span>
+  </h1>
+  <p class="hero-sub">
+    Plateforme centralisée de régulation médicale. Réception des appels, coordination des ambulances et affectation intelligente des missions en temps réel.
+  </p>
+  <div class="hero-actions">
+    <a href="#" class="btn-primary" onclick="openModal(); return false;">
+      ACCÉDER AU CENTRE
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <a href="#features" class="btn-secondary">VOIR LES FONCTIONNALITÉS</a>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stat-item">
+    <div class="stat-label">Ambulances disponibles</div>
+    <div class="stat-value green" id="s1">12</div>
+    <div class="stat-delta">↑ sur 18 unités actives</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-label">Missions en cours</div>
+    <div class="stat-value amber" id="s2">4</div>
+    <div class="stat-delta">→ temps moyen 18 min</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-label">Places disponibles</div>
+    <div class="stat-value" id="s3">247</div>
+    <div class="stat-delta">↑ dans 11 hôpitaux</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-label">Appels traités aujourd'hui</div>
+    <div class="stat-value red" id="s4">38</div>
+    <div class="stat-delta">↑ depuis 00h00</div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<div class="features" id="features">
+  <div class="section-tag">// FONCTIONNALITÉS</div>
+  <h2 class="section-title">Ce que fait le centre opérationnel</h2>
+  <div class="features-grid">
+    <div class="feature-card" data-num="01">
+      <div class="feature-icon">📞</div>
+      <div class="feature-title">RÉCEPTION D'APPELS</div>
+      <div class="feature-desc">Saisie rapide des incidents entrants — localisation, priorité, description. Chaque appel génère un dossier d'urgence traçable.</div>
+    </div>
+    <div class="feature-card" data-num="02">
+      <div class="feature-icon">🗺️</div>
+      <div class="feature-title">CARTE EN TEMPS RÉEL</div>
+      <div class="feature-desc">Visualisation live de toutes les ambulances, leur statut et leur position. Suggestion automatique de l'unité la plus proche.</div>
+    </div>
+    <div class="feature-card" data-num="03">
+      <div class="feature-icon">🚑</div>
+      <div class="feature-title">AFFECTATION DE MISSION</div>
+      <div class="feature-desc">Création et affectation d'une mission à un ambulancier en un clic. Notification immédiate sur la plateforme ambulancier.</div>
+    </div>
+    <div class="feature-card" data-num="04">
+      <div class="feature-icon">🏥</div>
+      <div class="feature-title">PLACES HÔPITAUX</div>
+      <div class="feature-desc">Vue centralisée des disponibilités de tous les hôpitaux enrôlés — par spécialité et en temps réel pour choisir la destination.</div>
+    </div>
+    <div class="feature-card" data-num="05">
+      <div class="feature-icon">👤</div>
+      <div class="feature-title">GESTION DES ÉQUIPES</div>
+      <div class="feature-desc">Création des comptes ambulanciers, association aux véhicules, suivi des statuts disponible / en mission / hors service.</div>
+    </div>
+    <div class="feature-card" data-num="06">
+      <div class="feature-icon">📊</div>
+      <div class="feature-title">TABLEAU DE BORD</div>
+      <div class="feature-desc">Vue d'ensemble des indicateurs clés — missions actives, temps d'intervention, taux de disponibilité des ressources.</div>
+    </div>
+  </div>
+</div>
+
+<!-- WORKFLOW -->
+<div class="workflow">
+  <div class="section-tag">// PROCESSUS</div>
+  <h2 class="section-title">De l'appel à la mission — en 6 étapes</h2>
+  <div class="workflow-steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-label">APPEL REÇU</div>
+      <div class="step-sub">Le régulateur reçoit l'appel d'urgence</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-label">SAISIE INCIDENT</div>
+      <div class="step-sub">Lieu, priorité et description enregistrés</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-label">LOCALISATION</div>
+      <div class="step-sub">Position affichée sur la carte interactive</div>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <div class="step-label">CHOIX HÔPITAL</div>
+      <div class="step-sub">Sélection selon places et spécialités</div>
+    </div>
+    <div class="step">
+      <div class="step-num">05</div>
+      <div class="step-label">AFFECTATION</div>
+      <div class="step-sub">Mission créée et envoyée à l'ambulancier</div>
+    </div>
+    <div class="step">
+      <div class="step-num">06</div>
+      <div class="step-label">SUIVI LIVE</div>
+      <div class="step-sub">Mission suivie jusqu'à la clôture</div>
+    </div>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="cta">
+  <div>
+    <div class="cta-title">Prêt à réguler les urgences ?</div>
+    <div class="cta-sub">Connectez-vous au centre opérationnel pour gérer les missions en temps réel.</div>
+  </div>
+  <a href="#" class="btn-primary" onclick="openModal(); return false;" style="white-space:nowrap">
+    OUVRIR UNE SESSION
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </a>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">P.I.G.<span>U</span> — SAMU NATIONAL</div>
+  <div class="footer-right">SÉNÉGAL © 2026 — PROTOTYPE V1.0</div>
+</footer>
+
+<!-- LOGIN MODAL -->
+<div class="modal-overlay" id="modal" onclick="closeOnOverlay(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-tag">// AUTHENTIFICATION</div>
+    <div class="modal-title">ACCÈS CENTRE<br>OPÉRATIONNEL</div>
+    <form onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label class="form-label">IDENTIFIANT</label>
+        <input type="text" class="form-input" placeholder="login" id="login-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">MOT DE PASSE</label>
+        <input type="password" class="form-input" placeholder="••••••••" id="pass-input">
+      </div>
+      <button type="submit" class="btn-submit">CONNEXION</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // Stats animation
+  function animateCounter(el, target, duration) {
+    let start = 0;
+    const step = target / (duration / 16);
+    const timer = setInterval(() => {
+      start += step;
+      if (start >= target) { el.textContent = target; clearInterval(timer); return; }
+      el.textContent = Math.floor(start);
+    }, 16);
+  }
+
+  setTimeout(() => {
+    animateCounter(document.getElementById('s1'), 12, 1000);
+    animateCounter(document.getElementById('s2'), 4, 800);
+    animateCounter(document.getElementById('s3'), 247, 1200);
+    animateCounter(document.getElementById('s4'), 38, 900);
+  }, 900);
+
+  // Modal
+  function openModal() { document.getElementById('modal').classList.add('active'); }
+  function closeModal() { document.getElementById('modal').classList.remove('active'); }
+  function closeOnOverlay(e) { if (e.target === document.getElementById('modal')) closeModal(); }
+
+  function handleLogin(e) {
+    e.preventDefault();
+    const login = document.getElementById('login-input').value;
+    const pass = document.getElementById('pass-input').value;
+    if (login && pass) {
+      window.location.href = 'dashboard.php?login=' + encodeURIComponent(login);
+    }
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+</script>
+</body>
+</html>
