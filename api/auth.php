@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once 'db_connect.php';
 
 header('Content-Type: application/json');
@@ -39,20 +38,23 @@ try {
     echo json_encode(['success' => false, 'message' => 'Erreur: ' . $e->getMessage()]);
 }
 
+// ══════════════════════════════════════════════
+// LOGIN
+// ══════════════════════════════════════════════
 function handleLogin($pdo, $data) {
     if (!$data || !isset($data['login']) || !isset($data['password'])) {
         echo json_encode(['success' => false, 'message' => 'Identifiants requis']);
         return;
     }
-    
+
     $roleCondition = "";
     $params = [$data['login'], $data['password']];
-    
+
     if (isset($data['role']) && !empty($data['role'])) {
         $roleCondition = " AND role = ?";
         $params[] = strtoupper($data['role']);
     }
-    
+
     $stmt = $pdo->prepare("
         SELECT id, nom, prenom, login, telephone, role 
         FROM utilisateur 
@@ -61,95 +63,166 @@ function handleLogin($pdo, $data) {
     ");
     $stmt->execute($params);
     $user = $stmt->fetch();
-    
+
     if ($user) {
         if ($user['role'] === 'GESTIONNAIRE_HOPITAL') {
-            $stmt2 = $pdo->prepare("SELECT id FROM hopital WHERE utilisateur_id = ?");
+            $stmt2 = $pdo->prepare("
+                SELECT id, nom, adresse, latitude, longitude, telephone 
+                FROM hopital 
+                WHERE utilisateur_id = ?
+            ");
             $stmt2->execute([$user['id']]);
             $hopital = $stmt2->fetch();
-            $user['hopital_id'] = $hopital ? $hopital['id'] : null;
+            $user['hopital_id']      = $hopital ? $hopital['id']        : null;
+            $user['hopital_nom']     = $hopital ? $hopital['nom']       : null;
+            $user['hopital_adresse'] = $hopital ? $hopital['adresse']   : null;
         }
-        
+
         if ($user['role'] === 'AMBULANCIER') {
-            $stmt2 = $pdo->prepare("SELECT id, immatriculation, statut FROM ambulance WHERE utilisateur_id = ?");
+            $stmt2 = $pdo->prepare("
+                SELECT id, immatriculation, statut 
+                FROM ambulance 
+                WHERE utilisateur_id = ?
+            ");
             $stmt2->execute([$user['id']]);
             $ambulance = $stmt2->fetch();
-            $user['ambulance_id'] = $ambulance ? $ambulance['id'] : null;
-            $user['immatriculation'] = $ambulance ? $ambulance['immatriculation'] : null;
-            $user['ambulance_statut'] = $ambulance ? $ambulance['statut'] : null;
+            $user['ambulance_id']     = $ambulance ? $ambulance['id']             : null;
+            $user['immatriculation']  = $ambulance ? $ambulance['immatriculation'] : null;
+            $user['ambulance_statut'] = $ambulance ? $ambulance['statut']          : null;
         }
+
         if ($user['role'] === 'ADMIN_SAMU') {
             $user['is_admin'] = true;
         }
-        
+
         echo json_encode(['success' => true, 'user' => $user]);
     } else {
         echo json_encode(['success' => false, 'message' => 'Identifiants incorrects ou rôle invalide']);
     }
 }
 
+// ══════════════════════════════════════════════
+// REGISTER
+// ══════════════════════════════════════════════
 function handleRegister($pdo, $data) {
+    if (!$data) {
+        echo json_encode(['success' => false, 'message' => 'Données invalides']);
+        return;
+    }
+
+    // Champs utilisateur obligatoires
+    if (!isset($data['nom']) || !isset($data['prenom']) || !isset($data['login']) ||
+        !isset($data['mot_de_passe']) || !isset($data['telephone'])) {
+        echo json_encode(['success' => false, 'message' => 'Tous les champs sont requis']);
+        return;
+    }
+
+    $role = isset($data['role']) ? strtoupper($data['role']) : 'AMBULANCIER';
+
+    // Pour un gestionnaire, le nom de l'hôpital est obligatoire
+    if ($role === 'GESTIONNAIRE_HOPITAL') {
+        if (!isset($data['hopital']) || empty($data['hopital']['nom'])) {
+            echo json_encode(['success' => false, 'message' => 'Le nom de l\'hôpital est requis']);
+            return;
+        }
+    }
+
+    // Vérifier login unique
+    $stmt = $pdo->prepare("SELECT id FROM utilisateur WHERE login = ?");
+    $stmt->execute([$data['login']]);
+    if ($stmt->fetch()) {
+        echo json_encode(['success' => false, 'message' => 'Ce login est déjà utilisé']);
+        return;
+    }
+
+    // Vérifier longueur mot de passe
+    if (strlen($data['mot_de_passe']) < 6) {
+        echo json_encode(['success' => false, 'message' => 'Le mot de passe doit contenir au moins 6 caractères']);
+        return;
+    }
+
     try {
         $pdo->beginTransaction();
 
-        // Insertion Utilisateur
-        $stmt = $pdo->prepare("INSERT INTO utilisateur (nom, prenom, login, mot_de_passe, telephone, role) VALUES (?, ?, ?, MD5(?), ?, ?)");
-        $success = $stmt->execute([
-            $data['nom'], 
-            $data['prenom'], 
-            $data['login'], 
-            $data['mot_de_passe'], 
-            $data['telephone'], 
-            $data['role']
+        // 1. Créer l'utilisateur
+        $stmt = $pdo->prepare("
+            INSERT INTO utilisateur (nom, prenom, login, mot_de_passe, telephone, role)
+            VALUES (?, ?, ?, MD5(?), ?, ?)
+        ");
+        $stmt->execute([
+            $data['nom'],
+            $data['prenom'],
+            $data['login'],
+            $data['mot_de_passe'],
+            $data['telephone'],
+            $role
         ]);
 
-        if (!$success) {
-            // Si l'insertion utilisateur échoue, on récupère l'erreur
-            throw new Exception("Erreur insertion Utilisateur : " . implode(", ", $stmt->errorInfo()));
-        }
-
         $userId = $pdo->lastInsertId();
+        $hopitalId = null;
 
-        // Insertion Hôpital
-        if ($data['role'] === 'GESTIONNAIRE_HOPITAL' && isset($data['hopital'])) {
-            $h = $data['hopital'];
-            $stmtH = $pdo->prepare("INSERT INTO hopital (nom, adresse, latitude, longitude, telephone, utilisateur_id) VALUES (?, ?, ?, ?, ?, ?)");
-            $successH = $stmtH->execute([
-                $h['nom'], 
-                $h['adresse'], 
-                $h['latitude'], 
-                $h['longitude'], 
-                $h['telephone'], 
+        // 2. Si gestionnaire → créer l'hôpital
+        if ($role === 'GESTIONNAIRE_HOPITAL') {
+            $hopital    = $data['hopital'];
+            $nomHopital = trim($hopital['nom']);
+            $adresse    = isset($hopital['adresse'])   ? trim($hopital['adresse'])   : null;
+            $latitude   = isset($hopital['latitude'])  ? $hopital['latitude']        : null;
+            $longitude  = isset($hopital['longitude']) ? $hopital['longitude']       : null;
+            $telHopital = isset($hopital['telephone']) ? trim($hopital['telephone']) : null;
+
+            $stmt2 = $pdo->prepare("
+                INSERT INTO hopital (nom, adresse, latitude, longitude, telephone, utilisateur_id)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
+            $stmt2->execute([
+                $nomHopital,
+                $adresse,
+                $latitude,
+                $longitude,
+                $telHopital,
                 $userId
             ]);
-
-            if (!$successH) {
-                throw new Exception("Erreur insertion Hôpital : " . implode(", ", $stmtH->errorInfo()));
-            }
+            $hopitalId = $pdo->lastInsertId();
         }
 
         $pdo->commit();
-        echo json_encode(['success' => true]);
 
-    } catch (Exception $e) {
+        echo json_encode([
+            'success'    => true,
+            'message'    => 'Inscription réussie',
+            'user_id'    => $userId,
+            'hopital_id' => $hopitalId
+        ]);
+
+    } catch(Exception $e) {
         $pdo->rollBack();
-        // C'est ce message qui va nous donner la clé du mystère !
         echo json_encode(['success' => false, 'message' => $e->getMessage()]);
     }
 }
 
+// ══════════════════════════════════════════════
+// LOGOUT
+// ══════════════════════════════════════════════
 function handleLogout() {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
     session_destroy();
     echo json_encode(['success' => true, 'message' => 'Déconnexion réussie']);
 }
 
+// ══════════════════════════════════════════════
+// GET CURRENT USER
+// ══════════════════════════════════════════════
 function handleGetCurrentUser($pdo, $data) {
-    
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
     if (!isset($_SESSION['user_id'])) {
         echo json_encode(['success' => false, 'message' => 'Non authentifié']);
         return;
     }
-    
+
     $stmt = $pdo->prepare("
         SELECT id, nom, prenom, login, telephone, role 
         FROM utilisateur 
@@ -157,21 +230,33 @@ function handleGetCurrentUser($pdo, $data) {
     ");
     $stmt->execute([$_SESSION['user_id']]);
     $user = $stmt->fetch();
-    
+
     if ($user) {
         if ($user['role'] === 'GESTIONNAIRE_HOPITAL') {
-            $stmt2 = $pdo->prepare("SELECT id as hopital_id FROM hopital WHERE utilisateur_id = ?");
+            $stmt2 = $pdo->prepare("
+                SELECT id, nom, adresse, latitude, longitude, telephone 
+                FROM hopital 
+                WHERE utilisateur_id = ?
+            ");
             $stmt2->execute([$user['id']]);
             $hopital = $stmt2->fetch();
-            $user['hopital_id'] = $hopital ? $hopital['hopital_id'] : null;
+            $user['hopital_id']      = $hopital ? $hopital['id']      : null;
+            $user['hopital_nom']     = $hopital ? $hopital['nom']     : null;
+            $user['hopital_adresse'] = $hopital ? $hopital['adresse'] : null;
         }
+
         if ($user['role'] === 'AMBULANCIER') {
-            $stmt2 = $pdo->prepare("SELECT id as ambulance_id, immatriculation, statut FROM ambulance WHERE utilisateur_id = ?");
+            $stmt2 = $pdo->prepare("
+                SELECT id, immatriculation, statut 
+                FROM ambulance 
+                WHERE utilisateur_id = ?
+            ");
             $stmt2->execute([$user['id']]);
             $ambulance = $stmt2->fetch();
-            $user['ambulance_id'] = $ambulance ? $ambulance['ambulance_id'] : null;
+            $user['ambulance_id']    = $ambulance ? $ambulance['id']             : null;
             $user['immatriculation'] = $ambulance ? $ambulance['immatriculation'] : null;
         }
+
         echo json_encode(['success' => true, 'user' => $user]);
     } else {
         echo json_encode(['success' => false, 'message' => 'Utilisateur non trouvé']);
