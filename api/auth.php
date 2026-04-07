@@ -77,6 +77,9 @@ function handleLogin($pdo, $data) {
             $user['immatriculation'] = $ambulance ? $ambulance['immatriculation'] : null;
             $user['ambulance_statut'] = $ambulance ? $ambulance['statut'] : null;
         }
+        if ($user['role'] === 'ADMIN_SAMU') {
+            $user['is_admin'] = true;
+        }
         
         echo json_encode(['success' => true, 'user' => $user]);
     } else {
