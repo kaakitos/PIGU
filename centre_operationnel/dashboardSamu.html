@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P.I.G.U — Centre Opérationnel SAMU</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-logo">P.I.G.<span>U</span></div>
+  <div class="topbar-right">
+    <div class="sys-status"><span class="dot"></span>SYSTÈME ACTIF</div>
+    <div class="clock" id="clock">--:--:--</div>
+    <button class="btn-call" onclick="simulerAppel()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+      APPEL ENTRANT
+    </button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT — Incidents -->
+  <div class="panel-left">
+    <div class="stats-row">
+      <div class="stat-mini"><div class="stat-mini-label">AMBULANCES</div><div class="stat-mini-val vg" id="sv-amb">—</div></div>
+      <div class="stat-mini"><div class="stat-mini-label">MISSIONS</div><div class="stat-mini-val va" id="sv-mis">—</div></div>
+      <div class="stat-mini"><div class="stat-mini-label">PLACES DISPO</div><div class="stat-mini-val vb" id="sv-places">—</div></div>
+      <div class="stat-mini"><div class="stat-mini-label">INCIDENTS</div><div class="stat-mini-val vr" id="sv-inc">—</div></div>
+    </div>
+    <div class="panel-header">
+      <span class="panel-title">INCIDENTS ACTIFS </span>
+      <span class="badge badge-red" id="inc-count">0</span>
+    </div>
+    <div class="incident-list" id="incident-list"></div>
+  </div>
+
+  <!-- CENTER — Carte + Missions -->
+  <div class="panel-center">
+    <div class="map-toolbar">
+      <span class="map-toolbar-label">CARTE — DAKAR</span>
+      <button class="map-btn active" onclick="toggleLayer('amb',this)">AMB</button>
+      <button class="map-btn active" onclick="toggleLayer('hop',this)">HÔP</button>
+      <button class="map-btn active" onclick="toggleLayer('inc',this)">INC</button>
+      <span class="map-coords" id="map-coords">14.6937°N  17.4441°W</span>
+    </div>
+    <div id="map"></div>
+    <div class="map-legend">
+      <div class="legend-title">LÉGENDE</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>Disponible</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--amber)"></span>En mission</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--red)"></span>Incident</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--blue-lt)"></span>Hôpital</div>
+    </div>
+    <div class="missions-panel">
+      <div class="missions-header">
+        <span class="panel-title">MISSIONS EN COURS</span>
+        <span class="badge badge-amber" id="mis-count">0</span>
+      </div>
+      <div class="mission-row mission-row-header">
+        <span>ID</span><span>INCIDENT</span><span>AMB → HÔPITAL</span><span>STATUT</span><span>HEURE</span>
+      </div>
+      <div id="mission-list"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT — Ambulances + Hôpitaux + CTA -->
+  <div class="panel-right">
+    <div class="panel-header">
+      <span class="panel-title">AMBULANCES</span>
+      <span class="badge badge-green" id="amb-dispo-count">— DISPO</span>
+    </div>
+    <div class="amb-list" id="amb-list"></div>
+
+    <div class="panel-header">
+      <span class="panel-title">HÔPITAUX — PLACES</span>
+    </div>
+    <div class="hosp-list" id="hosp-list"></div>
+
+    <div class="cta-wrap">
+      <button class="btn-cta" onclick="openModal('modal-mission')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        CRÉER UNE MISSION
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== MODAL MISSION ====== -->
+<div class="overlay" id="modal-mission">
+  <div class="modal">
+    <div class="modal-top">
+      <div>
+        <div class="modal-tag">// NOUVELLE MISSION</div>
+        <div class="modal-title">AFFECTER UNE MISSION</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-mission')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label class="field-label">INCIDENT LIÉ</label>
+        <select class="field-select" id="m-incident">
+          <option value="">— Sélectionner l'incident —</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">PRIORITÉ</label>
+        <div class="prio-group">
+          <button class="prio-opt" onclick="setPrio(this,'sel-n')">NON URG.</button>
+          <button class="prio-opt sel-u" onclick="setPrio(this,'sel-u')">URGENT</button>
+          <button class="prio-opt" onclick="setPrio(this,'sel-tu')">TRÈS URG.</button>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">AMBULANCE</label>
+          <select class="field-select" id="m-amb">
+            <option value="">— Sélectionner —</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">HÔPITAL DESTINATION</label>
+          <select class="field-select" id="m-hop">
+            <option value="">— Sélectionner —</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">NOTES (optionnel)</label>
+        <textarea class="field-textarea" id="m-notes" placeholder="Instructions particulières pour l'ambulancier..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-mission')">ANNULER</button>
+      <button class="btn-submit" onclick="soumettreMission()">CONFIRMER LA MISSION</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== MODAL APPEL ENTRANT ====== -->
+<div class="overlay" id="modal-call">
+  <div class="call-modal">
+    <div class="call-top">
+      <div class="call-wave"><span></span><span></span><span></span><span></span></div>
+      <div>
+        <div class="call-label">APPEL ENTRANT — SAMU 15</div>
+        <div class="call-num" id="call-num">+221 77 XXX XX XX</div>
+      </div>
+    </div>
+    <div class="call-body">
+      <div class="call-field">
+        <div class="call-field-label">LOCALISATION DÉTECTÉE</div>
+        <div class="call-loc">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--green)"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+          <span id="call-loc" class="call-loc-anim">Localisation GPS en cours...</span>
+        </div>
+      </div>
+      <div class="call-field">
+        <div class="call-field-label">DESCRIPTION DE L'APPELANT</div>
+        <textarea class="call-desc" id="call-desc" placeholder="Ex : accident de la route, 2 blessés, véhicule renversé..."></textarea>
+      </div>
+      <div class="call-field">
+        <div class="call-field-label">PRIORITÉ ESTIMÉE</div>
+        <div class="prio-group">
+          <button class="prio-opt" onclick="setCallPrio(this,'sel-n','NON_URGENT')">NON URG.</button>
+          <button class="prio-opt sel-u" onclick="setCallPrio(this,'sel-u','URGENT')">URGENT</button>
+          <button class="prio-opt" onclick="setCallPrio(this,'sel-tu','TRES_URGENT')">TRÈS URG.</button>
+        </div>
+      </div>
+    </div>
+    <div class="call-footer">
+      <button class="btn-reject" onclick="closeModal('modal-call')">RACCROCHER</button>
+      <button class="btn-accept" onclick="enregistrerAppel()">ENREGISTRER L'INCIDENT</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <div class="toast-title" id="toast-title">MISSION CRÉÉE</div>
+  <div id="toast-msg"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ===== CONFIG =====
+const API = 'http://localhost/PIGU/api';
+
+// ===== STATE (alimenté uniquement par l'API) =====
+let ambulances = [];
+let hopitaux   = [];
+let incidents  = [];
+let missions   = [];
+let callPrio   = 'URGENT';
+
+// ===== CLOCK =====
+function tick() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('fr-FR'); }
+tick(); setInterval(tick, 1000);
+
+// ===== MAP =====
+const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([14.693, -17.447], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+map.on('mousemove', e =>
+  document.getElementById('map-coords').textContent =
+    `${e.latlng.lat.toFixed(4)}°N  ${Math.abs(e.latlng.lng).toFixed(4)}°W`
+);
+
+function mkIcon(color, emoji) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:26px;height:26px;background:${color}22;border:2px solid ${color};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px">${emoji}</div>`,
+    iconSize: [26, 26], iconAnchor: [13, 13]
+  });
+}
+
+const layers = { amb: L.layerGroup(), hop: L.layerGroup(), inc: L.layerGroup() };
+
+function rebuildMarkers() {
+  Object.values(layers).forEach(l => l.clearLayers());
+
+  ambulances.forEach(a => {
+    const c = a.statut === 'DISPONIBLE' ? '#00E5A0' : '#FFB300';
+    L.marker([a.lat, a.lng], { icon: mkIcon(c, '🚑') })
+      .bindPopup(`<b style="color:${c}">${a.id}</b><br>${a.driver}<br><small>${a.statut}</small>`)
+      .addTo(layers.amb);
+  });
+
+  hopitaux.forEach(h => {
+    L.marker([h.lat, h.lng], { icon: mkIcon('#42A5F5', '🏥') })
+      .bindPopup(`<b style="color:#42A5F5">${h.nom}</b><br>${h.places} places<br><small>${h.spec}</small>`)
+      .addTo(layers.hop);
+  });
+
+  incidents.forEach(i => {
+    if (i.statut === 'RESOLU') return;
+    const c = i.prio === 'TRES_URGENT' ? '#EF5350' : '#FFB300';
+    L.marker([i.lat, i.lng], { icon: mkIcon(c, '⚠') })
+      .bindPopup(`<b style="color:${c}">${i.id}</b><br>${i.desc}<br><small>${i.addr}</small>`)
+      .addTo(layers.inc);
+  });
+}
+
+Object.values(layers).forEach(l => l.addTo(map));
+
+function toggleLayer(name, btn) {
+  btn.classList.toggle('active');
+  map.hasLayer(layers[name]) ? map.removeLayer(layers[name]) : layers[name].addTo(map);
+}
+
+// ===== RENDER =====
+function renderStats() {
+  const dispo     = ambulances.filter(a => a.statut === 'DISPONIBLE').length;
+  const enCours   = missions.filter(m => m.statut === 'EN_COURS').length;
+  const totalPlaces = hopitaux.reduce((s, h) => s + h.places, 0);
+  const actifs    = incidents.filter(i => i.statut !== 'RESOLU').length;
+
+  document.getElementById('sv-amb').textContent    = dispo;
+  document.getElementById('sv-mis').textContent    = enCours;
+  document.getElementById('sv-places').textContent = totalPlaces;
+  document.getElementById('sv-inc').textContent    = actifs;
+}
+
+function renderIncidents() {
+  const el = document.getElementById('incident-list');
+  el.innerHTML = '';
+
+  const actifs = incidents.filter(i => i.statut !== 'RESOLU');
+  actifs.forEach((inc, i) => {
+    const pc = inc.prio === 'TRES_URGENT' ? 'prio-tu' : inc.prio === 'URGENT' ? 'prio-u' : 'prio-n';
+    const pl = inc.prio === 'TRES_URGENT' ? 'TRÈS URG.' : inc.prio === 'URGENT' ? 'URGENT' : 'NON URG.';
+    const sb = inc.statut === 'NOUVEAU' ? 'badge-red' : inc.statut === 'EN_TRAITEMENT' ? 'badge-amber' : 'badge-green';
+    el.innerHTML += `<div class="incident-item${i === 0 ? ' active' : ''}" onclick="selInc('${inc.id}')">
+      <div class="inc-top"><span class="inc-id">${inc.id}</span><span class="inc-time">${inc.time}</span></div>
+      <div class="inc-desc">${inc.desc}</div>
+      <div class="inc-meta">
+        <span class="prio-pill ${pc}">${pl}</span>
+        <span class="badge ${sb}">${inc.statut.replace('_', ' ')}</span>
+        <span class="addr">${inc.addr}</span>
+      </div>
+    </div>`;
+  });
+
+  document.getElementById('inc-count').textContent = actifs.length;
+
+  // Remplir le select dans la modal
+  const s = document.getElementById('m-incident');
+  s.innerHTML = '<option value="">— Sélectionner l\'incident —</option>';
+  actifs.filter(i => i.statut === 'NOUVEAU').forEach(i =>
+    s.innerHTML += `<option value="${i.rawId}">${i.id} — ${i.desc}</option>`
+  );
+}
+
+function selInc(id) {
+  document.querySelectorAll('.incident-item').forEach(e => e.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  const inc = incidents.find(i => i.id === id);
+  if (inc) {
+    map.setView([inc.lat, inc.lng], 15);
+    document.getElementById('m-incident').value = inc.rawId;
+  }
+}
+
+function renderAmbs() {
+  const el = document.getElementById('amb-list');
+  el.innerHTML = '';
+
+  ambulances.forEach(a => {
+    const c  = a.statut === 'DISPONIBLE' ? 'var(--green)' : a.statut === 'EN_MISSION' ? 'var(--amber)' : 'var(--text-mt)';
+    const bc = a.statut === 'DISPONIBLE' ? 'badge-green' : 'badge-amber';
+    el.innerHTML += `<div class="amb-item" onclick="selAmb('${a.rawId}')">
+      <span class="amb-sd" style="background:${c}"></span>
+      <div class="amb-info"><div class="amb-id">${a.id}</div><div class="amb-driver">${a.driver}</div></div>
+      <span class="badge ${bc}" style="font-size:8px">${a.statut.replace('_', ' ')}</span>
+    </div>`;
+  });
+
+  const dispo = ambulances.filter(a => a.statut === 'DISPONIBLE').length;
+  document.getElementById('amb-dispo-count').textContent = dispo + ' DISPO';
+
+  // Select modal — uniquement les disponibles
+  const s = document.getElementById('m-amb');
+  s.innerHTML = '<option value="">— Sélectionner —</option>';
+  ambulances.filter(a => a.statut === 'DISPONIBLE').forEach(a =>
+    s.innerHTML += `<option value="${a.rawId}">${a.id} — ${a.driver}</option>`
+  );
+}
+
+function selAmb(rawId) { document.getElementById('m-amb').value = rawId; }
+
+function renderHopitaux() {
+  const el = document.getElementById('hosp-list');
+  el.innerHTML = '';
+
+  hopitaux.forEach(h => {
+    const c = h.places > 15 ? 'var(--green)' : h.places > 5 ? 'var(--amber)' : 'var(--red)';
+    el.innerHTML += `<div class="hosp-item" onclick="selHop('${h.rawId}', this)">
+      <div class="hosp-name">${h.nom}</div>
+      <div class="hosp-meta">
+        <span class="hosp-spec" style="color:${c}">${h.places} places</span>
+        <span class="hosp-spec">${h.spec}</span>
+      </div>
+    </div>`;
+  });
+
+  const s = document.getElementById('m-hop');
+  s.innerHTML = '<option value="">— Sélectionner —</option>';
+  hopitaux.forEach(h => s.innerHTML += `<option value="${h.rawId}">${h.nom} (${h.places} pl.)</option>`);
+}
+
+function selHop(rawId, el) {
+  document.querySelectorAll('.hosp-item').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('m-hop').value = rawId;
+}
+
+function renderMissions() {
+  const el = document.getElementById('mission-list');
+  el.innerHTML = '';
+
+  missions.forEach(m => {
+    const inc = incidents.find(i => i.id === m.incId);
+    const hop = hopitaux.find(h => h.id === m.hopId);
+    const sc  = m.statut === 'EN_COURS' ? 'ms-ec' : m.statut === 'TERMINEE' ? 'ms-ok' : 'ms-wa';
+    el.innerHTML += `<div class="mission-row">
+      <span class="ms-id">${m.id}</span>
+      <span>${inc ? inc.desc.substring(0, 16) + '...' : m.incId}</span>
+      <span>${m.ambId} → ${hop ? hop.nom.substring(0, 12) + '...' : m.hopId}</span>
+      <span class="ms-statut ${sc}">${m.statut.replace('_', ' ')}</span>
+      <span style="color:var(--text-dim)">${m.time}</span>
+    </div>`;
+  });
+
+  const nc = missions.filter(m => m.statut === 'EN_COURS').length;
+  document.getElementById('mis-count').textContent = nc;
+}
+
+// ===== CHARGEMENT API =====
+function chargerAmbulances() {
+  return fetch(`${API}/CO/getAmbulance.php`)
+    .then(r => r.json())
+    .then(data => {
+      ambulances = data;
+    });
+}
+
+function chargerHopitaux() {
+  return fetch(`${API}/CO/getPlaces.php`)
+    .then(r => r.json())
+    .then(data => {
+      hopitaux = data;
+    });
+}
+
+function chargerIncidents() {
+  return fetch(`${API}/CO/incident.php`)
+    .then(r => r.json())
+    .then(data => {
+      incidents = data;
+    });
+}
+
+function chargerMissions() {
+  return fetch(`${API}/CO/getMission.php`)
+    .then(r => r.json())
+    .then(data => { missions = data; });
+}
+
+function rafraichirTout() {
+  Promise.all([chargerAmbulances(), chargerHopitaux(), chargerIncidents(), chargerMissions()])
+    .then(() => {
+      renderIncidents();
+      renderAmbs();
+      renderHopitaux();
+      renderMissions();
+      renderStats();
+      rebuildMarkers();
+    })
+    .catch(() => showToast('ERREUR', 'Impossible de contacter le serveur', true));
+}
+
+// ===== PRIO =====
+function setPrio(btn, cls) {
+  btn.closest('.prio-group').querySelectorAll('.prio-opt').forEach(b => b.className = 'prio-opt');
+  btn.classList.add(cls);
+}
+function setCallPrio(btn, cls, val) {
+  callPrio = val;
+  btn.closest('.prio-group').querySelectorAll('.prio-opt').forEach(b => b.className = 'prio-opt');
+  btn.classList.add(cls);
+}
+
+// ===== MODALS =====
+function openModal(id) {
+  if (id === 'modal-mission') {
+    renderIncidents();
+    renderAmbs();
+    renderHopitaux();
+  }
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeModal('modal-mission'); closeModal('modal-call'); }
+});
+document.querySelectorAll('.overlay').forEach(o =>
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); })
+);
+
+// ===== SIMUL APPEL =====
+const LIEUX = [
+  'Av. Blaise Diagne, Médina', 'Cité Keur Gorgui, Dakar',
+  'Marché Sandaga, Dakar', 'Rue 10, Grand Dakar',
+  'HLM Grand Yoff, Dakar', 'Route de Rufisque, Pikine'
+];
+const COORDS_LIEUX = {
+  'Av. Blaise Diagne, Médina':   [14.6880, -17.4410],
+  'Cité Keur Gorgui, Dakar':    [14.7100, -17.4700],
+  'Marché Sandaga, Dakar':      [14.6737, -17.4386],
+  'Rue 10, Grand Dakar':        [14.6780, -17.4520],
+  'HLM Grand Yoff, Dakar':      [14.7200, -17.4610],
+  'Route de Rufisque, Pikine':  [14.7540, -17.3900],
+};
+const NUMS = ['+221 77 342 18 90', '+221 76 518 27 43', '+221 78 903 55 12', '+221 70 234 67 88'];
+let callLat = 0, callLng = 0;
+
+function simulerAppel() {
+  const lieu = LIEUX[Math.floor(Math.random() * LIEUX.length)];
+  [callLat, callLng] = COORDS_LIEUX[lieu];
+
+  document.getElementById('call-num').textContent = NUMS[Math.floor(Math.random() * NUMS.length)];
+  document.getElementById('call-loc').textContent = 'Localisation GPS en cours...';
+  document.getElementById('call-loc').style.color = '';
+  document.getElementById('call-loc').className = 'call-loc-anim';
+  document.getElementById('call-desc').value = '';
+  callPrio = 'URGENT';
+  document.querySelectorAll('#modal-call .prio-opt').forEach(b => b.className = 'prio-opt');
+  document.querySelector('#modal-call .prio-opt:nth-child(2)').classList.add('sel-u');
+  openModal('modal-call');
+
+  setTimeout(() => {
+    document.getElementById('call-loc').textContent = lieu;
+    document.getElementById('call-loc').style.color = 'var(--green)';
+  }, 1800);
+}
+
+function enregistrerAppel() {
+  const desc = document.getElementById('call-desc').value.trim();
+  const addr = document.getElementById('call-loc').textContent;
+
+  if (!desc || addr === 'Localisation GPS en cours...') {
+    document.getElementById('call-desc').style.borderColor = 'var(--red)';
+    showToast('CHAMPS REQUIS', 'Attendez la localisation et saisissez une description.', true);
+    return;
+  }
+
+  fetch(`${API}/CO/incident.php`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ desc, addr, prio: callPrio, lat: callLat, lng: callLng })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      closeModal('modal-call');
+      showToast('INCIDENT ENREGISTRÉ', desc.substring(0, 50));
+      rafraichirTout();
+    } else {
+      showToast('ERREUR', data.error || 'Impossible d\'enregistrer l\'incident', true);
+    }
+  })
+  .catch(() => showToast('ERREUR RÉSEAU', 'Impossible de joindre le serveur', true));
+}
+
+// ===== CRÉER MISSION =====
+function soumettreMission() {
+  const incidentId  = document.getElementById('m-incident').value;
+  const ambulanceId = document.getElementById('m-amb').value;
+  const hopitalId   = document.getElementById('m-hop').value;
+
+  console.log({ incidentId, ambulanceId, hopitalId }); 
+
+  if (!incidentId || !ambulanceId || !hopitalId) {
+    showToast('CHAMPS REQUIS', 'Incident, ambulance et hôpital sont obligatoiresss.', true);
+    return;
+  }
+
+  fetch(`${API}/CO/createMission.php`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ incident: incidentId, ambulance: ambulanceId, hopital: hopitalId })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      closeModal('modal-mission');
+      showToast('MISSION CRÉÉE', 'Mission enregistrée avec succès.');
+      rafraichirTout();
+    } else {
+      showToast('ERREUR', data.error || 'Impossible de créer la missionnn', true);
+    }
+  })
+  .catch(() => showToast('ERREUR RÉSEAU', 'Impossible de joindre le serveurrr', true));
+}
+
+// ===== TOAST =====
+function showToast(title, msg, err = false) {
+  const t = document.getElementById('toast');
+  t.className = 'toast' + (err ? ' err' : '');
+  document.getElementById('toast-title').textContent = title;
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ===== INIT =====
+rafraichirTout();
+
+// Rafraîchissement automatique toutes les 30 secondes
+setInterval(rafraichirTout, 30000);
+</script>
+</body>
+</html>
