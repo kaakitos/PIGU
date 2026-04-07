@@ -282,6 +282,8 @@ function savePlace() {
         method = 'PUT'; 
         payload.id = parseInt(id); 
     }
+    console.log('User:', user);
+    console.log('Payload:', payload);
 
     fetch('/pigu/api/places.php', {
         method: method,
