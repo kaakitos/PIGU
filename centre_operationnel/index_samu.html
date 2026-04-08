@@ -53,7 +53,7 @@
     top: -200px;
     left: 50%;
     transform: translateX(-50%);
-    width: 900px;
+    width: min(900px, 100vw);
     height: 500px;
     background: radial-gradient(ellipse, rgba(232,41,58,0.12) 0%, transparent 70%);
     pointer-events: none;
@@ -622,7 +622,8 @@
   .modal {
     background: var(--bg2);
     border: 1px solid var(--border-red);
-    width: 420px;
+    width: 100%;
+    max-width: 420px;
     padding: 48px;
     position: relative;
     transform: translateY(20px);
@@ -715,6 +716,8 @@
   .modal-close:hover { color: var(--text); }
 
   @media (max-width: 900px) {
+    nav { padding: 0 16px; height: auto; flex-wrap: wrap; padding: 8px 16px; gap: 8px; }
+    .nav-right { gap: 10px; }
     .hero { padding: 100px 24px 40px; }
     .stats-bar { grid-template-columns: repeat(2, 1fr); }
     .features-grid { grid-template-columns: 1fr; }
@@ -723,6 +726,8 @@
     .features, .workflow { padding: 40px 24px; }
     .cta { margin: 0 24px 40px; padding: 32px; flex-direction: column; }
     footer { padding: 20px 24px; }
+    .modal { padding: 24px; }
+    .modal-overlay { padding: 16px; }
   }
 </style>
 </head>

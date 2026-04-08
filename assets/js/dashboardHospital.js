@@ -9,12 +9,19 @@ let deleteTargetId = null;
 let currentPage = 1;
 const PER_PAGE = 10;
 
+// Empêcher l'accès via le bouton retour après déconnexion
+window.addEventListener('pageshow', function(e) {
+    if (!sessionStorage.getItem('pigu_user')) {
+        window.location.href = '/';
+    }
+});
+
 // Récupérer l'utilisateur connecté
 const user = JSON.parse(sessionStorage.getItem('pigu_user'));
 
 // Si pas d'utilisateur connecté, rediriger vers login
 if (!user) {
-    window.location.href = 'hopital_login.html';
+    window.location.href = '/';
 }
 
 // ══════════════════════════════════════════════
@@ -419,11 +426,11 @@ function logout() {
     })
     .then(() => {
         sessionStorage.clear();
-        window.location.href = 'hopital_login.html';
+        window.location.href = '/';
     })
     .catch(() => {
         sessionStorage.clear();
-        window.location.href = 'hopital_login.html';
+        window.location.href = '/';
     });
 }
 

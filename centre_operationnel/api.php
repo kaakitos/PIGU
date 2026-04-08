@@ -6,23 +6,22 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST');
 header('Access-Control-Allow-Headers: Content-Type');
 
-//CONNEXION BASE DE DONNeES
-$servername = "127.0.0.1";
-$username = "root";
-$password = "root";
-$dbname = "pigu";
-$port=  "3307";
-
-define('DB_HOST',   $servername);
-define('DB_USER',   $username);
-define('DB_PASS',   $password);
-define('DB_NAME',   $dbname);
-define('DB_PORT',   $port);
+//CONNEXION BASE DE DONNEES
+define('DB_HOST', getenv('DB_HOST') ?: '127.0.0.1');
+define('DB_USER', getenv('DB_USER') ?: 'root');
+define('DB_PASS', getenv('DB_PASS') ?: 'root');
+define('DB_NAME', getenv('DB_NAME') ?: 'pigu');
+define('DB_PORT', getenv('DB_PORT') ?: '3307');
 
 function getDB() {
     try {
         $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
-        $pdo = new PDO($dsn, DB_USER, DB_PASS);
+        $options = [];
+        if (getenv('DB_HOST')) {
+            $options[PDO::MYSQL_ATTR_SSL_CA] = true;
+            $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+        }
+        $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
         return $pdo;

@@ -184,3 +184,29 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .leaflet-container{background:#080C14!important}
 .leaflet-tile{filter:brightness(.55) saturate(.3) hue-rotate(190deg)}
 .leaflet-control-zoom a{background:var(--bg2)!important;color:var(--text)!important;border-color:var(--border)!important}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+    body { height: auto; min-height: 100vh; overflow-x: hidden; overflow-y: auto; }
+    .main { display: flex; flex-direction: column; overflow: visible; }
+    .panel-left { max-height: none; border-right: none; border-bottom: 1px solid var(--border); }
+    .panel-right { max-height: none; border-left: none; border-top: 1px solid var(--border); }
+    .panel-center { min-height: 350px; }
+    #map { height: 300px; min-height: 300px; }
+    .topbar { flex-wrap: wrap; height: auto; padding: 8px 10px; gap: 6px; }
+    .topbar-logo { font-size: 14px; padding-right: 10px; margin-right: 10px; }
+    .topbar-right { flex-wrap: wrap; gap: 4px; }
+    .btn-call { padding: 6px 10px; font-size: 11px; }
+    .sys-status { font-size: 9px; }
+    .clock { font-size: 9px; }
+    .modal { width: 90vw; max-width: 480px; }
+    .call-modal { width: 90vw; max-width: 440px; }
+    .mission-row { grid-template-columns: 1fr 1fr; gap: 4px; font-size: 9px; }
+    .mission-row-header { display: none; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .incident-list { max-height: 40vh; overflow-y: auto; }
+    .amb-list { max-height: 30vh; }
+    .hosp-list { max-height: 30vh; }
+    .missions-panel { max-height: 40vh; }
+}
+}

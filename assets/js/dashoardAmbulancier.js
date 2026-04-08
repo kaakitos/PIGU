@@ -3,10 +3,17 @@ let currentUser = null;
 let currentMissionId = null;
 let missions = [];
 
+// Empêcher l'accès via le bouton retour après déconnexion
+window.addEventListener('pageshow', function(e) {
+    if (!sessionStorage.getItem('pigu_user')) {
+        window.location.href = '/';
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     const userData = sessionStorage.getItem('pigu_user');
     if (!userData) {
-        window.location.href = 'ambulancier_login.html';
+        window.location.href = '/';
         return;
     }
     currentUser = JSON.parse(userData);
@@ -313,5 +320,5 @@ function showToast(message, isError = false) {
 
 function logout() {
     sessionStorage.clear();
-    window.location.href = 'ambulancier_login.html';
+    window.location.href = '/';
 }
