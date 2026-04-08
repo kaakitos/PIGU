@@ -55,7 +55,7 @@ function showSection(name) {
 // ══════════════════════════════════════════════
 function loadPlaces() {
     // Chemin absolu depuis la racine du projet
-    const apiUrl = '/pigu/api/places.php?hopital_id=' + user.hopital_id;
+    const apiUrl = '/api/places.php?hopital_id=' + user.hopital_id;
     console.log('Chargement des places depuis:', apiUrl);
     
     fetch(apiUrl)
@@ -283,7 +283,7 @@ function savePlace() {
         payload.id = parseInt(id); 
     }
 
-    fetch('/pigu/api/places.php', {
+    fetch('/api/places.php', {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -305,7 +305,7 @@ function savePlace() {
 }
 
 function confirmDelete() {
-    fetch('/pigu/api/places.php?id=' + deleteTargetId, { 
+    fetch('/api/places.php?id=' + deleteTargetId, { 
         method: 'DELETE', 
         headers: { 'Content-Type': 'application/json' } 
     })
@@ -331,7 +331,7 @@ function cycleStatus(id) {
     const cycle = { DISPONIBLE:'OCCUPE', OCCUPE:'HORS_SERVICE', HORS_SERVICE:'DISPONIBLE' };
     const newStatut = cycle[p.statut];
     
-    fetch('/pigu/api/places.php', {
+    fetch('/api/places.php', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: id, statut: newStatut })
@@ -358,7 +358,7 @@ function markAllAvailable() {
     if (!confirm('Marquer TOUTES les places comme disponibles ?')) return;
     
     const updates = allPlaces.map(place => {
-        return fetch('/pigu/api/places.php', {
+        return fetch('/api/places.php', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: place.id, statut: 'DISPONIBLE' })
@@ -410,7 +410,7 @@ function formatDate(d) {
 }
 
 function logout() {
-    fetch('/pigu/api/auth.php', {
+    fetch('/api/auth.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'logout' })

@@ -301,7 +301,7 @@ function handleLogin(e) {
     const login    = document.getElementById('login').value.trim();
     const password = document.getElementById('password').value;
 
-    fetch('http://localhost/PIGU/api/auth.php', {
+    fetch('/api/auth.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

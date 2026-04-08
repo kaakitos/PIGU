@@ -7,11 +7,11 @@ header('Access-Control-Allow-Methods: GET, POST');
 header('Access-Control-Allow-Headers: Content-Type');
 
 //CONNEXION BASE DE DONNeES
-$servername = "localhost";
+$servername = "127.0.0.1";
 $username = "root";
-$password = "passer123";
-$dbname = "pigu_db";
-$port=  "3306";
+$password = "root";
+$dbname = "pigu";
+$port=  "3307";
 
 define('DB_HOST',   $servername);
 define('DB_USER',   $username);
