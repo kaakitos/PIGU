@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once 'db_connect.php';
 
 header('Content-Type: application/json');
@@ -88,73 +89,62 @@ function handleLogin($pdo, $data) {
 }
 
 function handleRegister($pdo, $data) {
-    if (!$data) {
-        echo json_encode(['success' => false, 'message' => 'Données invalides']);
-        return;
-    }
-    
-    if (!isset($data['nom']) || !isset($data['prenom']) || !isset($data['login']) || 
-        !isset($data['mot_de_passe']) || !isset($data['telephone'])) {
-        echo json_encode(['success' => false, 'message' => 'Tous les champs sont requis']);
-        return;
-    }
-    
-    $stmt = $pdo->prepare("SELECT id FROM utilisateur WHERE login = ?");
-    $stmt->execute([$data['login']]);
-    if ($stmt->fetch()) {
-        echo json_encode(['success' => false, 'message' => 'Ce login est déjà utilisé']);
-        return;
-    }
-    
-    if (strlen($data['mot_de_passe']) < 6) {
-        echo json_encode(['success' => false, 'message' => 'Le mot de passe doit contenir au moins 6 caractères']);
-        return;
-    }
-    
     try {
         $pdo->beginTransaction();
-        
-        $role = isset($data['role']) ? $data['role'] : 'AMBULANCIER';
-        
-        $stmt = $pdo->prepare("
-            INSERT INTO utilisateur (nom, prenom, login, mot_de_passe, telephone, role) 
-            VALUES (?, ?, ?, MD5(?), ?, ?)
-        ");
-        $stmt->execute([
-            $data['nom'],
-            $data['prenom'],
-            $data['login'],
-            $data['mot_de_passe'],
-            $data['telephone'],
-            $role
+
+        // Insertion Utilisateur
+        $stmt = $pdo->prepare("INSERT INTO utilisateur (nom, prenom, login, mot_de_passe, telephone, role) VALUES (?, ?, ?, MD5(?), ?, ?)");
+        $success = $stmt->execute([
+            $data['nom'], 
+            $data['prenom'], 
+            $data['login'], 
+            $data['mot_de_passe'], 
+            $data['telephone'], 
+            $data['role']
         ]);
+
+        if (!$success) {
+            // Si l'insertion utilisateur échoue, on récupère l'erreur
+            throw new Exception("Erreur insertion Utilisateur : " . implode(", ", $stmt->errorInfo()));
+        }
+
         $userId = $pdo->lastInsertId();
-        
-        // Pour un ambulancier, on ne crée pas d'ambulance immédiatement
-        // Il devra la créer lui-même après connexion
-        
+
+        // Insertion Hôpital
+        if ($data['role'] === 'GESTIONNAIRE_HOPITAL' && isset($data['hopital'])) {
+            $h = $data['hopital'];
+            $stmtH = $pdo->prepare("INSERT INTO hopital (nom, adresse, latitude, longitude, telephone, utilisateur_id) VALUES (?, ?, ?, ?, ?, ?)");
+            $successH = $stmtH->execute([
+                $h['nom'], 
+                $h['adresse'], 
+                $h['latitude'], 
+                $h['longitude'], 
+                $h['telephone'], 
+                $userId
+            ]);
+
+            if (!$successH) {
+                throw new Exception("Erreur insertion Hôpital : " . implode(", ", $stmtH->errorInfo()));
+            }
+        }
+
         $pdo->commit();
-        
-        echo json_encode([
-            'success' => true, 
-            'message' => 'Inscription réussie',
-            'user_id' => $userId
-        ]);
-        
-    } catch(Exception $e) {
+        echo json_encode(['success' => true]);
+
+    } catch (Exception $e) {
         $pdo->rollBack();
+        // C'est ce message qui va nous donner la clé du mystère !
         echo json_encode(['success' => false, 'message' => $e->getMessage()]);
     }
 }
 
 function handleLogout() {
-    session_start();
     session_destroy();
     echo json_encode(['success' => true, 'message' => 'Déconnexion réussie']);
 }
 
 function handleGetCurrentUser($pdo, $data) {
-    session_start();
+    
     if (!isset($_SESSION['user_id'])) {
         echo json_encode(['success' => false, 'message' => 'Non authentifié']);
         return;
@@ -188,5 +178,4 @@ function handleGetCurrentUser($pdo, $data) {
     }
 }
 
-session_start();
 ?>
